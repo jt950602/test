@@ -18,34 +18,28 @@
 
 ## Как запустить (на вашем ПК)
 
-1. Скопируйте `Organize-LocalPhotos.ps1` куда угодно (можно на рабочий стол).
-2. PowerShell:
+Самый простой способ — скачать **всю папку** `local-photos` и двойной клик:
+
+1. `RUN-PREVIEW.cmd` — только план  
+2. `RUN-COPY.cmd` — безопасно скопировать  
+3. `RUN-MOVE.cmd` — переместить  
+
+Или в PowerShell (обход политики + без поломки кодировки):
 
 ```powershell
-cd путь\к\скрипту
+cd $env:USERPROFILE\Downloads
 
-# Сначала только план (ничего не двигает)
-.\Organize-LocalPhotos.ps1
-
-# Безопасно: копирует в новую структуру (исходники остаются)
-.\Organize-LocalPhotos.ps1 -Apply -Copy
-
-# Или сразу переместить
-.\Organize-LocalPhotos.ps1 -Apply
-```
-
-Если Windows ругается на политику:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\Organize-LocalPhotos.ps1
+powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1
+powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Apply -Copy
 ```
 
 Другой корень:
 
 ```powershell
-.\Organize-LocalPhotos.ps1 -Root 'D:\Photos\Local' -Apply
+powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Root 'D:\Photos\Local' -Apply -Copy
 ```
+
+> Скрипт специально **без кириллицы в коде** (только `\uXXXX` в regex), чтобы Windows PowerShell не падал с `Unexpected token`.
 
 ## Как угадывает папку
 
