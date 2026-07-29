@@ -5,12 +5,14 @@
 #   powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1
 #   powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Apply -Copy
 #   powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Apply
+#   powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -InboxOnly -Apply
 
 [CmdletBinding()]
 param(
     [string]$Root = 'C:\Local',
     [switch]$Apply,
-    [switch]$Copy
+    [switch]$Copy,
+    [switch]$InboxOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -146,14 +148,17 @@ function Get-TargetRelative {
         return '01_raboty\brovi\oformlenie'
     }
 
-    # manicure / nails
-    if ($h -match ('manikyur|manicure|nail|french|baby.?boomer|design|neon|botanical|nude|' +
+    # manicure / nails / gel / shellac
+    if ($h -match ('manikyur|manikur|manicure|nail|french|baby.?boomer|design|neon|botanical|nude|shellac|gel.?lak|gellak|nogt|' +
         '\u043c\u0430\u043d\u0438\u043a\u044e\u0440|' +
         '\u043d\u043e\u0433\u0442|' +
         '\u0444\u0440\u0435\u043d\u0447|' +
         '\u0434\u0438\u0437\u0430\u0439\u043d|' +
         '\u0444\u0443\u043a\u0441\u0438|' +
-        '\u0430\u0440\u0442')) {
+        '\u0430\u0440\u0442|' +
+        '\u0433\u0435\u043b.?[\u043b\u043b]?\u0430\u043a|' +
+        '\u0448\u0435\u043b\u043b\u0430\u043a|' +
+        '\u043f\u043e\u043a\u0440\u044b\u0442')) {
         if ($h -match ('french|\u0444\u0440\u0435\u043d\u0447')) {
             return '01_raboty\manikyur\french'
         }
@@ -166,8 +171,16 @@ function Get-TargetRelative {
         return '01_raboty\manikyur\classic'
     }
 
-    if ($isVideo) {
+    # reels / stories / video leftovers
+    if ($isVideo -or ($h -match 'reels|stories|story|shorts|\u0441\u0442\u043e\u0440\u0438\u0441|\u0440\u0438\u043b\u0441')) {
         return '06_reels-raw'
+    }
+
+    # salon / zilart / local beauty without service -> space
+    if ($h -match ('zilart|zil|local.?beauty|salon|' +
+        '\u0437\u0438\u043b\u0430\u0440\u0442|' +
+        '\u0441\u0430\u043b\u043e\u043d')) {
+        return '03_prostranstvo'
     }
 
     return '00_inbox'
@@ -244,13 +257,27 @@ if ($Apply) {
 }
 
 Write-Host ''
-Write-Host 'Scanning media files...' -ForegroundColor Yellow
+if ($InboxOnly) {
+    Write-Host 'Scanning 00_inbox only...' -ForegroundColor Yellow
+} else {
+    Write-Host 'Scanning media files...' -ForegroundColor Yellow
+}
 
-$allFiles = Get-ChildItem -LiteralPath $Root -Recurse -File -ErrorAction SilentlyContinue |
+$scanRoot = if ($InboxOnly) { Join-Path $Root '00_inbox' } else { $Root }
+if (-not (Test-Path -LiteralPath $scanRoot)) {
+    Write-Host "Folder not found: $scanRoot" -ForegroundColor Red
+    exit 1
+}
+
+$allFiles = Get-ChildItem -LiteralPath $scanRoot -Recurse -File -ErrorAction SilentlyContinue |
     Where-Object { $MediaExt -contains $_.Extension.ToLowerInvariant() }
 
 $toProcess = @()
 foreach ($f in $allFiles) {
+    if ($InboxOnly) {
+        $toProcess += $f
+        continue
+    }
     $relFull = $f.FullName
     if (Test-IsUnderManaged -FullPath $relFull -RootPath $Root) {
         $rel = $relFull.Substring($Root.Length).TrimStart('\', '/')
@@ -258,6 +285,23 @@ foreach ($f in $allFiles) {
         if ($top -ne '00_inbox') { continue }
     }
     $toProcess += $f
+}
+
+# Write inbox file list for manual review / rules
+$inboxDir = Join-Path $Root '00_inbox'
+if (Test-Path -LiteralPath $inboxDir) {
+    $listPath = Join-Path $inboxDir '_list.txt'
+    $inboxFiles = Get-ChildItem -LiteralPath $inboxDir -Recurse -File -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -ne '_list.txt' -and ($MediaExt -contains $_.Extension.ToLowerInvariant()) }
+    $lines = @('Inbox file list - paste to assistant if auto-sort leaves files here', '')
+    foreach ($inf in $inboxFiles) {
+        $rel = $inf.FullName.Substring($inboxDir.Length).TrimStart('\')
+        $lines += $rel
+    }
+    if ($Apply -or $InboxOnly) {
+        Set-Content -LiteralPath $listPath -Value $lines -Encoding UTF8
+        Write-Host "Inbox list: $listPath ($($inboxFiles.Count) files)"
+    }
 }
 
 Write-Host ("Files to classify: {0}" -f $toProcess.Count)
