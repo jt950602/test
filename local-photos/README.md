@@ -23,6 +23,7 @@
 1. `RUN-PREVIEW.cmd` — только план  
 2. `RUN-COPY.cmd` — безопасно скопировать  
 3. `RUN-MOVE.cmd` — переместить  
+4. `RUN-SORT-INBOX.cmd` — ещё раз разобрать только `00_inbox`  
 
 Или в PowerShell (обход политики + без поломки кодировки):
 
@@ -31,6 +32,9 @@ cd $env:USERPROFILE\Downloads
 
 powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1
 powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Apply -Copy
+
+# Только inbox:
+powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -InboxOnly -Apply
 ```
 
 Другой корень:
@@ -40,6 +44,8 @@ powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Root 'D:\Ph
 ```
 
 > Скрипт специально **без кириллицы в коде** (только `\uXXXX` в regex), чтобы Windows PowerShell не падал с `Unexpected token`.
+
+Если после сортировки в `00_inbox` что-то осталось — открой `C:\Local\00_inbox\_list.txt` и пришли список сюда, допишем правила.
 
 ## Как угадывает папку
 
