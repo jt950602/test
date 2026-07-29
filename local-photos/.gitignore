@@ -1,0 +1,5 @@
+classify-log.txt
+organize-log.txt
+__pycache__/
+*.pyc
+.pytest_cache/
