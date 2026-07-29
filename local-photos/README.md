@@ -1,54 +1,43 @@
 # Структура фото LOCAL Beauty Studio (`C:\Local`)
 
-Скрипт создаёт папки и раскладывает фото/видео из `C:\Local` **и всех подпапок** по услугам.
+Скрипт **сразу переносит** фото/видео по папкам услуг (по умолчанию MOVE).
+
+## Запуск
+
+Скачай **всю папку** `local-photos` (и `.ps1`, и `.cmd` рядом).
+
+1. Двойной клик **`RUN-MOVE.cmd`**  
+2. Откроется блокнот с логом  
+
+Лог всегда пишется в три места:
+- рядом со скриптом: `organize-log.txt`
+- на рабочий стол: `local-organize-log.txt`
+- в `C:\Local\_organize-log.txt` (если папка есть)
+
+Если «лога нет» — запусти **`DIAG.cmd`** и пришли `Desktop\local-diag.txt`.
+
+Опционально:
+- `RUN-PREVIEW.cmd` — только план, без переноса  
+- `RUN-COPY.cmd` — копировать, исходники оставить  
+- `RUN-SORT-INBOX.cmd` — ещё раз разобрать `00_inbox`
+
+Или:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1
+```
 
 ## Папки
 
 | Папка | Назначение |
 |--------|------------|
-| `00_inbox` | Не распознано — разобрать руками |
-| `01_raboty\...` | Работы: маникюр, педикюр, ресницы, брови, массаж |
-| `02_process` | До/после, процесс |
-| `03_prostranstvo` | Интерьер, атмосфера |
+| `00_inbox` | Не распознано |
+| `01_raboty\...` | Работы по услугам |
+| `02_process` | До/после |
+| `03_prostranstvo` | Интерьер |
 | `04_komanda` | Мастера |
-| `05_brand` | Лого, обложки |
+| `05_brand` | Лого / обложки |
 | `06_reels-raw` | Видео |
-| `_archive` | Брак / старое |
-| `_publish\...` | Отобранное на сайт, VK, stories, Telegram |
+| `_publish\...` | Отобранное на публикации |
 
-## Как запустить (на вашем ПК)
-
-Самый простой способ — скачать **всю папку** `local-photos` и двойной клик:
-
-1. `RUN-PREVIEW.cmd` — только план  
-2. `RUN-COPY.cmd` — безопасно скопировать  
-3. `RUN-MOVE.cmd` — переместить  
-4. `RUN-SORT-INBOX.cmd` — ещё раз разобрать только `00_inbox`  
-
-Или в PowerShell (обход политики + без поломки кодировки):
-
-```powershell
-cd $env:USERPROFILE\Downloads
-
-powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1
-powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Apply -Copy
-
-# Только inbox:
-powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -InboxOnly -Apply
-```
-
-Другой корень:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\Organize-LocalPhotos.ps1 -Root 'D:\Photos\Local' -Apply -Copy
-```
-
-> Скрипт специально **без кириллицы в коде** (только `\uXXXX` в regex), чтобы Windows PowerShell не падал с `Unexpected token`.
-
-Если после сортировки в `00_inbox` что-то осталось — открой `C:\Local\00_inbox\_list.txt` и пришли список сюда, допишем правила.
-
-## Как угадывает папку
-
-По словам в **имени файла и пути**: `маникюр`, `френч`, `ресниц`, `бров`, `массаж`, `интерьер`, `nail`, `lash` и т.д.
-
-Не уверен → `00_inbox`. Уже лежащее в новой структуре **не трогает** (кроме повторного разбора `00_inbox`).
+Если пишет `no media files found` — фото не в `C:\Local`. Пришли содержимое `C:\Local\_organize-log.txt`.
