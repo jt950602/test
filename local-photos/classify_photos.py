@@ -114,7 +114,9 @@ COARSE_PROMPTS = {
         'nail salon workspace chairs tables interior',
     ],
     'komanda': [
-        'portrait photo of beauty salon master facing camera',
+        'group team photo of beauty salon employees in uniform smiling at camera',
+        'professional headshot portrait of hairdresser or nail master in salon apron',
+        'staff team picture inside beauty salon not a client',
     ],
     'brand': [
         'logo graphic brand design flat artwork not a photo',
@@ -140,13 +142,19 @@ BROW_FINE = {
 }
 
 
+WORK_COARSE = {'manikyur', 'resnicy', 'brovi', 'massazh', 'pedikyur'}
+KOMANDA_MIN_CONF = 0.55
+WORK_KOMANDA_MARGIN = 0.18
+
+
 class Logger:
     def __init__(self) -> None:
         self.lines: list[str] = []
 
     def log(self, msg: str) -> None:
         line = f'{datetime.now():%H:%M:%S}  {msg}'
-        print(msg)
+        enc = getattr(sys.stdout, 'encoding', None) or 'utf-8'
+        print(msg.encode(enc, errors='replace').decode(enc))
         self.lines.append(line)
 
     def save(self, paths: list[Path]) -> None:
@@ -246,7 +254,16 @@ class VisionClassifier:
             feat = self.model.encode_image(img)
             feat /= feat.norm(dim=-1, keepdim=True)
 
-        coarse, conf, scores = self._best(feat, COARSE_PROMPTS)
+        # Classify without komanda first — faces on work photos wrongly land in team folder.
+        no_komanda = {k: v for k, v in COARSE_PROMPTS.items() if k != 'komanda'}
+        coarse, conf, scores = self._best(feat, no_komanda)
+
+        if conf < self.min_confidence:
+            k_coarse, k_conf, _ = self._best(feat, {'komanda': COARSE_PROMPTS['komanda']})
+            if k_conf >= KOMANDA_MIN_CONF:
+                coarse, conf = k_coarse, k_conf
+            else:
+                return '00_inbox', conf, 'low-conf'
 
         # Note: "complex" (lashes+brows) is keyword-only — vision confuses
         # permanent brows with lashes too often.
@@ -286,7 +303,19 @@ def ensure_structure(root: Path, apply: bool, log: Logger) -> None:
                 log.log(f'[mkdir?] {rel}')
 
 
-def collect_media(root: Path, inbox_only: bool) -> list[Path]:
+def collect_media(root: Path, inbox_only: bool, folder_only: str | None = None) -> list[Path]:
+    if folder_only:
+        scan = root / folder_only
+        if not scan.exists():
+            return []
+        files: list[Path] = []
+        skip_names = {'_organize-log.txt', '_list.txt', 'README-struktura.txt', 'organize-log.txt', 'classify-log.txt'}
+        for p in scan.rglob('*'):
+            if not p.is_file() or p.suffix.lower() not in MEDIA_EXT or p.name in skip_names:
+                continue
+            files.append(p)
+        return sorted(files)
+
     scan = root / '00_inbox' if inbox_only else root
     if not scan.exists():
         return []
@@ -335,6 +364,7 @@ def main() -> int:
     parser.add_argument('--keywords-only', action='store_true', help='Skip CLIP vision')
     parser.add_argument('--vision-only', action='store_true', help='Skip keyword rules')
     parser.add_argument('--min-confidence', type=float, default=0.35)
+    parser.add_argument('--folder-only', help='Re-classify only this folder, e.g. 04_komanda')
     parser.add_argument('--limit', type=int, default=0, help='Process at most N files (0=all)')
     args = parser.parse_args()
 
@@ -353,7 +383,7 @@ def main() -> int:
     log.log(
         f'preview={args.preview or not apply} copy={args.copy} '
         f'inbox_only={args.inbox_only} keywords_only={args.keywords_only} '
-        f'vision_only={args.vision_only}'
+        f'vision_only={args.vision_only} folder_only={args.folder_only}'
     )
 
     if not root.exists():
@@ -366,7 +396,7 @@ def main() -> int:
             return 1
 
     ensure_structure(root, apply, log)
-    media = collect_media(root, args.inbox_only)
+    media = collect_media(root, args.inbox_only, args.folder_only)
     log.log(f'Media to classify: {len(media)}')
     if not media:
         log.log('ERROR: no media files found under root (unmanaged / inbox).')
